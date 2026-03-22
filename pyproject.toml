@@ -19,7 +19,8 @@ dependencies = [
 test = [
     "pytest",
     "pytest-asyncio",
-    "pytest-mock"
+    "pytest-mock",
+    "pytest-cov"
 ]
 
 [project.scripts]
