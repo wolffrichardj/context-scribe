@@ -43,7 +43,7 @@ class Dashboard:
         # Store absolute path for terminal linking
         abs_path = os.path.join(os.path.expanduser(self.bank_path), file_path)
         self.history.insert(0, (self.last_event_time, file_path, description, abs_path))
-        if len(self.history) > 10:
+        if len(self.history) > 10:  # Keep last 10 updates
             self.history.pop()
 
     def generate_layout(self) -> Layout:
@@ -63,9 +63,23 @@ class Dashboard:
         )
         layout["header"].update(Panel(header_text, style="blue", border_style="blue"))
 
-        # ... (status logic) ...
+        # Status Panel (Top)
+        status_color = "cyan"
+        if "🤔" in self.status: status_color = "yellow"
+        elif "📖" in self.status: status_color = "blue"
+        elif "🧠" in self.status: status_color = "bright_magenta"
+        elif "📝" in self.status: status_color = "magenta"
+        elif "✅" in self.status: status_color = "green"
 
-        # History Panel with Clickable Links
+        status_text = Text(f"\n{self.status}\n", justify="center", style=f"bold {status_color}")
+        layout["status"].update(Panel(
+            status_text,
+            title="Active Task",
+            border_style=status_color,
+            subtitle="Press Ctrl+C to stop"
+        ))
+
+        # History Panel (Bottom)
         history_table = Table(expand=True, box=None)
         history_table.add_column("Time", style="dim", width=10)
         history_table.add_column("Modified File (Click to Open)", style="cyan")
