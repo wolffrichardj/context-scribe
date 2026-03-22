@@ -3,7 +3,7 @@
 The following diagram illustrates the data flow and component interactions within Context-Scribe.
 
 ```mermaid
-sequence_view
+sequenceDiagram
     participant User
     participant GeminiCLI as Gemini CLI
     participant Watcher as Observer (Watcher)
