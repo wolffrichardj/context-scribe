@@ -49,22 +49,26 @@ LATEST USER INTERACTION TO ANALYZE:
 
 INSTRUCTIONS:
 1. Categorize the rule with a strict **"Global-Unless-Proven-Local"** policy:
-   - **GLOBAL (DEFAULT)**: All general coding styles, naming conventions, and personal preferences.
-   - **PROJECT (EXCEPTION)**: Strictly for rules unique to "{interaction.project_name}".
-2. Rule Enhancement (CRITICAL):
-   - Professionalize slang into technical descriptions.
-   - Ensure rules are clear directives.
-   - Add a tiny inline example for complex rules.
-3. Output Format:
+   - **GLOBAL (DEFAULT)**: General preferences applying universally.
+   - **PROJECT (EXCEPTION)**: Rules unique to "{interaction.project_name}" or explicitly restricted by the user.
+2. Rule Hierarchy & Updates (CRITICAL):
+   - If the rule is GLOBAL: Merge it ONLY into the **EXISTING GLOBAL RULES** list.
+   - If the rule is PROJECT: Merge it ONLY into the **EXISTING PROJECT RULES** list.
+   - **NEVER** mix global rules into the project list, or vice versa.
+3. Rule Enhancement:
+   - Professionalize slang and add concrete examples.
+   - Ensure rules are phrased as clear directives.
+4. Output Format:
    - Output a JSON object with:
      - "scope": "GLOBAL" or "PROJECT"
-     - "description": "A very concise (3-5 words) summary of the change."
-     - "rules": "The FULL list of consolidated rules. You MUST merge the new rule into the existing list and remove any duplicates or redundant headers. Return ONE single clean list."
-4. If NO changes are needed, output exactly: NO_RULE
+     - "description": "A very concise summary of the change."
+     - "rules": "The FULL consolidated list for the CHOSEN SCOPE ONLY. If scope is PROJECT, return only project rules. If scope is GLOBAL, return only global rules."
+5. If NO changes are needed, output exactly: NO_RULE
 
-CRITICAL: **Do not repeat the existing list followed by a new list.** Return only the final, unified state. Output ONLY the JSON object or NO_RULE.
+CRITICAL: **Do not return rules from the other scope.** Return ONE single clean list for the determined scope. Output ONLY the JSON object or NO_RULE.
 """
         try:
+            # SPEED OPTIMIZED CLI CALL:
             result = subprocess.run(
                 [
                     "gemini", 
@@ -93,7 +97,6 @@ CRITICAL: **Do not repeat the existing list followed by a new list.** Return onl
                 pass
 
             # Try to parse rule JSON from response text using a non-greedy match
-            # and looking for the specific keys we expect.
             json_match = re.search(r'\{.*?"scope".*?"rules".*?\}', str(response_text), re.DOTALL)
             if json_match:
                 try:
@@ -107,8 +110,6 @@ CRITICAL: **Do not repeat the existing list followed by a new list.** Return onl
                         else:
                             rules_content = str(rules_raw).strip()
                             
-                        # If LLM just outputted conversational noise in the 'rules' key,
-                        # check if it contains actual rules (markdown bullets or headers)
                         if len(rules_content) > 0:
                             return RuleOutput(
                                 content=rules_content, 
@@ -118,13 +119,10 @@ CRITICAL: **Do not repeat the existing list followed by a new list.** Return onl
                 except json.JSONDecodeError:
                     pass
 
-            # If no JSON found, check for NO_RULE
             if "NO_RULE" in str(response_text):
                 return None
             
-            # ABSOLUTELY NO FALLBACK TO RAW TEXT. 
-            # If the LLM didn't give us valid JSON, we treat it as no change to avoid corruption.
-            logger.error(f"Failed to parse rule extraction from LLM response for {interaction.project_name}")
+            logger.error(f"Failed to parse rule extraction for {interaction.project_name}")
             return None
             
         except subprocess.TimeoutExpired:
