@@ -15,6 +15,7 @@ INTERNAL_SIGNATURE = "--- CONTEXT-SCRIBE-INTERNAL-EVALUATION ---"
 class RuleOutput:
     content: str
     scope: str  # "GLOBAL" or "PROJECT"
+    description: str # Concise summary of what changed
 
 class Evaluator:
     def __init__(self):
@@ -48,20 +49,20 @@ LATEST USER INTERACTION TO ANALYZE:
 
 INSTRUCTIONS:
 1. Categorize the rule with a strict **"Global-Unless-Proven-Local"** policy:
-   - **GLOBAL (DEFAULT)**: All general coding styles, naming conventions, and personal preferences. If the user says "Always", "I like", "Use X", or doesn't mention a project, it is GLOBAL.
-   - **PROJECT (EXCEPTION)**: Strictly for rules unique to "{interaction.project_name}" (e.g., repo-specific tech, file paths, or if the user says "In this project only").
+   - **GLOBAL (DEFAULT)**: All general coding styles, naming conventions, and personal preferences.
+   - **PROJECT (EXCEPTION)**: Strictly for rules unique to "{interaction.project_name}".
 2. Rule Enhancement (CRITICAL):
-   - **Professionalize**: Convert informal requests or slang into professional technical specifications.
-   - **Clarify**: Translate terms like "spongebob typing" into technical descriptions (e.g., "alternating uppercase and lowercase characters").
-   - **Actionable**: Ensure rules are phrased as clear directives for an AI agent.
-   - **Examples**: Add a tiny inline example for complex rules (e.g., `LiKe_ThIs`).
+   - Professionalize slang into technical descriptions.
+   - Ensure rules are clear directives.
+   - Add a tiny inline example for complex rules.
 3. Output Format:
    - Output a JSON object with:
      - "scope": "GLOBAL" or "PROJECT"
-     - "rules": "The ENTIRE consolidated list of rules for that scope, enhanced for clarity and organized into logical Markdown categories (e.g., # Style, # Architecture, # Workflow, etc.)."
-4. If NO changes are needed, output exactly: NO_RULE
+     - "description": "A very concise (3-5 words) summary of the NEW rule or update."
+     - "rules": "The NEW or UPDATED rules ONLY. Format them as Markdown (e.g., '### Style\n- Use 4 spaces'). Do not include existing rules unless you are modifying them."
+4. If NO NEW rules are identified, output exactly: NO_RULE
 
-CRITICAL: **Ambiguity = GLOBAL**. Unless the user explicitly restricts the rule to "{interaction.project_name}", save it globally. Output ONLY the JSON object or NO_RULE.
+CRITICAL: **Do not repeat existing rules** unless they need to be changed. Output ONLY the JSON object or NO_RULE.
 """
         try:
             result = subprocess.run(
@@ -85,29 +86,34 @@ CRITICAL: **Ambiguity = GLOBAL**. Unless the user explicitly restricts the rule 
             response_text = output
             try:
                 data = json.loads(output)
-                response_text = data.get("response", output)
+                if isinstance(data, dict):
+                    response_text = data.get("response", output)
             except json.JSONDecodeError:
                 pass
 
-            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            json_match = re.search(r'\{.*\}', str(response_text), re.DOTALL)
             if json_match:
                 try:
                     rule_data = json.loads(json_match.group(0))
                     if "scope" in rule_data and "rules" in rule_data:
                         rules_raw = rule_data["rules"]
-                        rules_content = "\n".join([str(r) for r in rules_raw]).strip() if isinstance(rules_raw, list) else str(rules_raw).strip()
-                        return RuleOutput(content=rules_content, scope=rule_data["scope"].upper())
+                        desc = rule_data.get("description", "Updated rules")
+                        if isinstance(rules_raw, list):
+                            rules_content = "\n".join([str(r) for r in rules_raw]).strip()
+                        else:
+                            rules_content = str(rules_raw).strip()
+                        return RuleOutput(content=rules_content, scope=rule_data["scope"].upper(), description=str(desc))
                 except json.JSONDecodeError:
                     pass
 
-            if "NO_RULE" in response_text:
+            if "NO_RULE" in str(response_text):
                 return None
             
-            return None
+            # Fallback
+            scope = "PROJECT" if "PROJECT" in str(response_text).upper() else "GLOBAL"
+            return RuleOutput(content=str(response_text), scope=scope, description="Extracted rule")
             
         except subprocess.TimeoutExpired:
-            logger.error("Gemini CLI evaluation timed out.")
             return None
-        except Exception as e:
-            logger.error(f"Unexpected error: {e}")
+        except Exception:
             return None

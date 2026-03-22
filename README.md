@@ -1,43 +1,50 @@
-# Context-Scribe
+# 📜 Context-Scribe
 
-A "Persistent Secretary" daemon designed to eliminate "Agent Amnesia." It monitors local AI session logs in the background, extracts long-term behavioral rules and project constraints using a lightweight LLM, and seamlessly commits them to a centralized Memory Bank via the Model Context Protocol (MCP).
+**Context-Scribe** is a "Persistent Secretary" daemon designed to eliminate "Agent Amnesia." It monitors local AI session logs in the background, extracts long-term behavioral rules and project constraints, and professionally persists them to a centralized Memory Bank via the Model Context Protocol (MCP).
 
-## Core Features
-* **Zero-Touch Sync:** Automatically extracts and persists rules natively from chat logs, entirely out of band.
-* **Intelligent Evaluation:** Employs the `gemini-2.5-flash` (via your local CLI) to differentiate "Signal" (long-term rules) from "Noise" (transient task chatter).
-* **Conflict Resolution:** Implements "New-Trumps-Old" logic. If a new instruction contradicts an existing memory, the system autonomously updates the Memory Bank to reflect your most recent intent.
-* **Pointer Strategy:** Bootstraps new sessions with a single directive, forcing agents to natively lookup current project constraints via MCP.
+![Context-Scribe Dashboard](docs/dashboard-ui-render.png)
 
-## Architecture
+## 🚀 Core Features
+
+*   **🔄 Zero-Touch Sync**: Automatically extracts and persists rules natively from chat logs, entirely out of band.
+*   **📂 Project-Aware Routing**: Intelligently detects the active project context and routes rules to either `global/global_rules.md` or `[project-name]/rules.md`.
+*   **⚖️ Strength Hierarchy**: Enforces a "Project > Global" hierarchy. Project-specific rules always take precedence over global ones.
+*   **🧠 Intelligent Enhancement**: Does not just copy-paste; the system professionalizes slang (e.g., "spongebob typing" -> "alternating uppercase") and adds concrete code examples.
+*   **🏗️ Semantic Categorization**: Automatically organizes your Memory Bank into logical Markdown sections like `# Style`, `# Architecture`, and `# Personal`.
+*   **🛡️ Conflict Resolution**: Implements "New-Trumps-Old" logic to autonomously resolve contradictions within the same scope.
+*   **⚡ Ultra-Fast Evaluation**: Uses optimized, extension-free headless calls to `gemini-2.5-flash-lite` for near-instant extraction.
+
+## 🏗️ Architecture
+
 Context-Scribe operates on an **Observer-Evaluator-Bridge** pattern:
-1. **Observer**: A robust `watchdog` powered log monitor with manual periodic scanning to ensure zero missed events.
-2. **Evaluator**: Headless evaluation powered by your local `gemini` CLI (no extra API keys required).
-3. **Bridge**: Direct MCP integration via standard I/O syncing data into `@allpepper/memory-bank-mcp`.
+1.  **Observer**: A robust `watchdog` powered log monitor with manual periodic scanning ensuring zero missed events across various Gemini log formats.
+2.  **Evaluator**: Headless evaluation powered by your local `gemini` CLI (no extra API keys required).
+3.  **Bridge**: Direct MCP integration syncing data into `@allpepper/memory-bank-mcp`.
 
-## Installation & Setup
+## 🛠️ Installation & Setup
 
 Ensure you have Python 3.10+ installed.
 
-1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd context-scribe
-   ```
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/Joaolfelicio/context-scribe.git
+    cd context-scribe
+    ```
 
-2. **Set up a virtual environment:**
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   ```
+2.  **Set up a virtual environment:**
+    ```bash
+    python3 -m venv .venv
+    source .venv/bin/activate
+    ```
 
-3. **Install the package:**
-   ```bash
-   pip install -e .
-   ```
+3.  **Install the package:**
+    ```bash
+    pip install -e ".[test]"
+    ```
 
-## Usage
+## 📖 Usage
 
-Start the daemon:
+Start the production daemon:
 ```bash
 context-scribe --tool gemini
 ```
@@ -45,26 +52,20 @@ context-scribe --tool gemini
 ### Integration
 Upon running, `context-scribe` will bootstrap your `~/.gemini/GEMINI.md` file globally to ensure agents inherently know how to query the persistent memory via MCP. Ensure you have the corresponding memory-bank server correctly configured within your Gemini CLI setup.
 
-## Testing the Tool
+## 🧪 Testing
 
-To verify that the tool is correctly extracting and persisting rules, follow these steps:
+We maintain a high standard of quality with a **hard requirement of at least 80% code coverage**.
 
-1.  **Start the daemon** in a terminal:
+### Running Tests
+To verify the system components and logic:
+```bash
+pytest --cov=context_scribe tests/
+```
+
+### Manual Validation
+1.  **Start the daemon**: `context-scribe --tool gemini`
+2.  **Simulate a rule**: 
     ```bash
-    context-scribe --tool gemini
+    echo '[{"role": "user", "content": "Rule: Always use single quotes for Python strings."}]' > ~/.gemini/tmp/test_rule.json
     ```
-2.  **Simulate an AI interaction** by creating a mock log file in the Gemini temporary directory:
-    ```bash
-    echo '[{"role": "user", "content": "Rule: All variables must be named using snake_case in Python scripts."}]' > ~/.gemini/tmp/test_rule.json
-    ```
-3.  **Wait for processing** (usually 20-40 seconds). You will see the status in the daemon UI change from `[WATCH]` to `[THINK]`, `[RESOLVE]`, and finally `[BANK]`.
-4.  **Verify the Memory Bank**:
-    ```bash
-    cat ~/.memory-bank/global/global_rules.md
-    ```
-5.  **Test Conflict Resolution**:
-    Send a contradictory rule to see the system intelligently update the list:
-    ```bash
-    echo '[{"role": "user", "content": "Rule: Actually, all variables must be named using UPPERCASE."}]' > ~/.gemini/tmp/test_conflict.json
-    ```
-    After processing, check the rules file again; the snake_case rule should be replaced by the UPPERCASE rule.
+3.  **Verify**: Check `~/.memory-bank/global/global_rules.md` for the professionally enhanced and categorized rule.
