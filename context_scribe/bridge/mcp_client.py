@@ -6,14 +6,14 @@ from mcp import ClientSession
 from mcp.client.stdio import stdio_client, StdioServerParameters
 
 class MemoryBankClient:
-    def __init__(self, command: str = "npx", args: list[str] = None):
+    def __init__(self, command: str = "npx", args: list[str] = None, bank_path: str = None):
         import os
         self.command = command
         self.args = args or ["-y", "@allpepper/memory-bank-mcp"]
         
         env = os.environ.copy()
         if "MEMORY_BANK_ROOT" not in env:
-            env["MEMORY_BANK_ROOT"] = os.path.expanduser("~/.memory-bank")
+            env["MEMORY_BANK_ROOT"] = os.path.expanduser(bank_path or "~/.memory-bank")
             
         self.server_params = StdioServerParameters(
             command=self.command,

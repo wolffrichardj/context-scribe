@@ -52,13 +52,22 @@ Ensure you have Python 3.10+ installed.
 
 ## 📖 Usage
 
-Start the production daemon:
+### 1. Simple Mode (Default)
+Start the production daemon using the default Memory Bank location (`~/.memory-bank`):
 ```bash
 context-scribe --tool gemini
 ```
 
+### 2. Custom Memory Bank Location
+If you have configured your AI tool's MCP server to use a different root directory, pass it via the `--bank-path` flag:
+```bash
+context-scribe --tool gemini --bank-path "/path/to/your/custom-bank"
+```
+
+> **CRITICAL**: The `--bank-path` **must match** the `MEMORY_BANK_ROOT` environment variable configured in your AI tool's MCP settings (e.g., in `~/.gemini/settings.json`).
+
 ### Integration
-Upon running, `context-scribe` will bootstrap your `~/.gemini/GEMINI.md` file globally to ensure agents inherently know how to query the persistent memory via MCP. Ensure you have the corresponding memory-bank server correctly configured within your Gemini CLI setup.
+Upon running, `context-scribe` will bootstrap your `~/.gemini/GEMINI.md` file globally to ensure agents inherently know how to query the persistent memory via MCP.
 
 ## 🧪 Testing
 
