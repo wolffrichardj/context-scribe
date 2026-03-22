@@ -62,7 +62,7 @@ INSTRUCTIONS:
    - Output a JSON object with:
      - "scope": "GLOBAL" or "PROJECT"
      - "description": "A very concise summary of the change."
-     - "rules": "The FULL consolidated list for the CHOSEN SCOPE ONLY. If scope is PROJECT, return only project rules. If scope is GLOBAL, return only global rules."
+     - "rules": "The FULL consolidated list for the CHOSEN SCOPE ONLY, organized into logical Markdown categories (e.g., # Style, # Architecture, # Workflow, etc.). Use clean bullet points."
 5. If NO changes are needed, output exactly: NO_RULE
 
 CRITICAL: **Do not return rules from the other scope.** Return ONE single clean list for the determined scope. Output ONLY the JSON object or NO_RULE.

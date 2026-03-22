@@ -14,6 +14,16 @@
 *   **🛡️ Conflict Resolution**: Implements "New-Trumps-Old" logic to autonomously resolve contradictions within the same scope.
 *   **⚡ Ultra-Fast Evaluation**: Uses optimized, extension-free headless calls to `gemini-2.5-flash-lite` for near-instant extraction.
 
+## 🗣️ Natural Interaction
+
+Context-Scribe is designed to be invisible. You **do not** need to use special "Rule" prefixes or commands. Simply interact with your AI agent as you normally would:
+
+*   *"I prefer using single quotes for Python strings."*
+*   *"My name is Joao and I'm a senior engineer."*
+*   *"For this specific project, let's use Tailwind for styling."*
+
+The Evaluator will autonomously detect that these are long-term preferences, professionalize them, and commit them to your Memory Bank in the background.
+
 ## 🏗️ Architecture
 
 Context-Scribe operates on an **Observer-Evaluator-Bridge** pattern. See the [full architecture diagram and workflow details](docs/architecture.md) for more information.

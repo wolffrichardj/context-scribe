@@ -11,7 +11,7 @@ sequenceDiagram
     participant Bridge as MCP Bridge
     participant MemoryBank as Memory Bank (MCP)
 
-    User->>GeminiCLI: "Rule: Use single quotes"
+    User->>GeminiCLI: "I prefer using single quotes"
     GeminiCLI->>Watcher: Write Interaction to Log
     Watcher->>Watcher: Detect File Change
     Watcher->>Bridge: Read Existing Rules
