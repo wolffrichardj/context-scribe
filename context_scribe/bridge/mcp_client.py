@@ -40,14 +40,39 @@ class MemoryBankClient:
             raise RuntimeError("Not connected to MCP server")
             
         try:
-            # First try to update
+            # 1. Read existing content
+            existing_content = ""
+            try:
+                read_result = await self.session.call_tool(
+                    "memory_bank_read",
+                    arguments={
+                        "projectName": project_name,
+                        "fileName": "global_rules.md"
+                    }
+                )
+                if not (hasattr(read_result, 'isError') and read_result.isError):
+                    if hasattr(read_result, 'content') and read_result.content:
+                        existing_content = read_result.content[0].text
+            except Exception:
+                pass # File might not exist yet
+
+            # 2. Append new rule
+            if existing_content:
+                # Avoid exact duplicates
+                if rule.strip() in existing_content:
+                    return None
+                new_content = f"{existing_content.strip()}\\n\\n{rule.strip()}"
+            else:
+                new_content = rule.strip()
+
+            # 3. Try to update
             try:
                 result = await self.session.call_tool(
                     "memory_bank_update", 
                     arguments={
                         "projectName": project_name,
                         "fileName": "global_rules.md",
-                        "content": rule
+                        "content": new_content
                     }
                 )
                 if hasattr(result, 'isError') and result.isError:
@@ -57,7 +82,7 @@ class MemoryBankClient:
                         arguments={
                             "projectName": project_name,
                             "fileName": "global_rules.md",
-                            "content": rule
+                            "content": new_content
                         }
                     )
                 return result
@@ -68,7 +93,7 @@ class MemoryBankClient:
                     arguments={
                         "projectName": project_name,
                         "fileName": "global_rules.md",
-                        "content": rule
+                        "content": new_content
                     }
                 )
                 return result
