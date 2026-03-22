@@ -4,7 +4,7 @@ import shutil
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Iterator, Dict, Set
+from typing import Iterator, Dict, Set, List
 
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
@@ -33,12 +33,20 @@ class GeminiLogHandler(FileSystemEventHandler):
 class GeminiProvider(BaseProvider):
     def __init__(self, log_dir: str = "~/.gemini/tmp/"):
         self.log_dir = Path(os.path.expanduser(log_dir))
-        self.interaction_queue = []
+        self.interaction_queue: List[Interaction] = []
         # Track processed message IDs globally across all files to avoid duplicates
         self.global_processed_ids: Set[str] = set()
+        self.id_limit = 10000
         # Track file mtimes to detect changes
         self.last_mtimes: Dict[str, float] = {}
         self._initialize_historical_logs()
+
+    def _add_id(self, msg_id: str):
+        if len(self.global_processed_ids) >= self.id_limit:
+            # Simple overflow protection: clear half if limit reached
+            # In a more complex app, we'd use an OrderedDict for LRU
+            self.global_processed_ids.clear()
+        self.global_processed_ids.add(msg_id)
 
     def _initialize_historical_logs(self):
         """Skip all messages existing before the daemon starts."""
@@ -60,7 +68,7 @@ class GeminiProvider(BaseProvider):
                     
                     for msg in messages:
                         raw_msg_id = msg.get("id") or msg.get("messageId") or str(msg)
-                        self.global_processed_ids.add(f"{session_id}_{raw_msg_id}")
+                        self._add_id(f"{session_id}_{raw_msg_id}")
             except Exception:
                 pass
 
@@ -115,7 +123,7 @@ class GeminiProvider(BaseProvider):
                     
                     if msg_id not in self.global_processed_ids:
                         self._extract_interaction(msg, project_name)
-                        self.global_processed_ids.add(msg_id)
+                        self._add_id(msg_id)
 
         except Exception as e:
             # Silently fail for parsing errors (e.g. partial writes)

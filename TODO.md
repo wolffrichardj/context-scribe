@@ -1,0 +1,2 @@
+- [] Refactor so its more extendable with other tools (if using gemini, should use gemini everywhere)
+- [] Test further

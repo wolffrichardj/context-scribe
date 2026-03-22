@@ -103,9 +103,11 @@ CRITICAL: **Ambiguity = GLOBAL**. Unless the user explicitly restricts the rule 
             if "NO_RULE" in response_text:
                 return None
             
-            return RuleOutput(content=str(response_text), scope="PROJECT" if "PROJECT" in response_text.upper() else "GLOBAL")
+            return None
             
         except subprocess.TimeoutExpired:
+            logger.error("Gemini CLI evaluation timed out.")
             return None
-        except Exception:
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
             return None

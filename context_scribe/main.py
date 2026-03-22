@@ -34,7 +34,7 @@ class Dashboard:
         self.status = "Initializing..."
         self.last_event_time = "N/A"
         self.update_count = 0
-        self.history = []  # List of (time, file_path) tuples
+        self.history: list[tuple[str, str]] = []  # List of (time, file_path) tuples
 
     def add_history(self, file_path: str):
         self.update_count += 1
@@ -109,15 +109,22 @@ def bootstrap_global_config() -> None:
     gemini_config_dir.mkdir(parents=True, exist_ok=True)
     gemini_md_path = gemini_config_dir / "GEMINI.md"
 
-    up_to_date = False
+    current_content = ""
     if gemini_md_path.exists():
-        with open(gemini_md_path, "r", encoding="utf-8") as f:
-            if "Rule Precedence:" in f.read():
-                up_to_date = True
+        current_content = gemini_md_path.read_text(encoding="utf-8")
 
-    if not up_to_date:
-        with open(gemini_md_path, "a", encoding="utf-8") as f:
-            f.write(f"\n{MASTER_RETRIEVAL_RULE}\n")
+    if "Rule Precedence:" not in current_content:
+        # If an old version of the integration section exists, replace it
+        if "# Memory Bank Integration" in current_content:
+            # Simple replacement of the existing section
+            import re
+            pattern = r"# Memory Bank Integration.*?(?=#|$)"
+            new_content = re.sub(pattern, MASTER_RETRIEVAL_RULE.strip(), current_content, flags=re.DOTALL)
+            gemini_md_path.write_text(new_content, encoding="utf-8")
+        else:
+            # Append if nothing found
+            with open(gemini_md_path, "a", encoding="utf-8") as f:
+                f.write(f"\n{MASTER_RETRIEVAL_RULE}\n")
 
 async def run_daemon(tool: str) -> bool:
     bootstrap_global_config()
@@ -131,7 +138,7 @@ async def run_daemon(tool: str) -> bool:
         await mcp_client.connect()
     except Exception:
         console.print("[bold red]MCP Connection Failed.[/bold red]")
-        os._exit(1)
+        sys.exit(1)
 
     db = Dashboard(tool)
     with Live(db.generate_layout(), refresh_per_second=10, screen=True) as live:
@@ -180,8 +187,9 @@ async def run_daemon(tool: str) -> bool:
     return True
 
 @click.command()
-@click.option('--tool', default='gemini', help='The AI tool to monitor')
-def cli(tool):
+@click.option('--tool', default='gemini', help='The AI tool to monitor (e.g., gemini)')
+def cli(tool: str) -> None:
+    """Context-Scribe: Persistent Secretary Daemon"""
     asyncio.run(run_daemon(tool))
 
 if __name__ == "__main__":
