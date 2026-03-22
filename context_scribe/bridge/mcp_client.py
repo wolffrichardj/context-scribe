@@ -40,18 +40,38 @@ class MemoryBankClient:
             raise RuntimeError("Not connected to MCP server")
             
         try:
-            # Check available tools to see which one to use
-            # Usually memory-bank has something like "memory_bank_update" or "memory_bank_write"
-            # For this example we use memory_bank_write
-            result = await self.session.call_tool(
-                "memory_bank_write", 
-                arguments={
-                    "projectName": project_name,
-                    "fileName": "global_rules.md",
-                    "content": rule
-                }
-            )
-            return result
+            # First try to update
+            try:
+                result = await self.session.call_tool(
+                    "memory_bank_update", 
+                    arguments={
+                        "projectName": project_name,
+                        "fileName": "global_rules.md",
+                        "content": rule
+                    }
+                )
+                if hasattr(result, 'isError') and result.isError:
+                    # If update fails (e.g. file doesn't exist), fallback to write
+                    result = await self.session.call_tool(
+                        "memory_bank_write", 
+                        arguments={
+                            "projectName": project_name,
+                            "fileName": "global_rules.md",
+                            "content": rule
+                        }
+                    )
+                return result
+            except Exception:
+                # Fallback to write if update tool throws exception
+                result = await self.session.call_tool(
+                    "memory_bank_write", 
+                    arguments={
+                        "projectName": project_name,
+                        "fileName": "global_rules.md",
+                        "content": rule
+                    }
+                )
+                return result
         except Exception as e:
             print(f"Error saving to memory bank: {e}")
             return None
