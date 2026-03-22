@@ -1,4 +1,5 @@
 import asyncio
+import os
 from contextlib import AsyncExitStack
 
 from mcp import ClientSession
@@ -34,7 +35,7 @@ class MemoryBankClient:
             print(f"Failed to connect to MCP server: {e}")
             raise
 
-    async def read_rules(self, project_name: str = "global") -> str:
+    async def read_rules(self, project_name: str = "global", file_name: str = "global_rules.md") -> str:
         """Read existing content from the memory bank."""
         if not self.session:
             return ""
@@ -43,7 +44,7 @@ class MemoryBankClient:
                 "memory_bank_read",
                 arguments={
                     "projectName": project_name,
-                    "fileName": "global_rules.md"
+                    "fileName": file_name
                 }
             )
             if not (hasattr(read_result, 'isError') and read_result.isError):
@@ -53,7 +54,7 @@ class MemoryBankClient:
             pass
         return ""
 
-    async def save_rule(self, content: str, project_name: str = "global"):
+    async def save_rule(self, content: str, project_name: str = "global", file_name: str = "global_rules.md"):
         """Save rules directly to the memory bank."""
         if not self.session:
             raise RuntimeError("Not connected to MCP server")
@@ -65,7 +66,7 @@ class MemoryBankClient:
                     "memory_bank_update", 
                     arguments={
                         "projectName": project_name,
-                        "fileName": "global_rules.md",
+                        "fileName": file_name,
                         "content": content
                     }
                 )
@@ -75,7 +76,7 @@ class MemoryBankClient:
                         "memory_bank_write", 
                         arguments={
                             "projectName": project_name,
-                            "fileName": "global_rules.md",
+                            "fileName": file_name,
                             "content": content
                         }
                     )
@@ -86,7 +87,7 @@ class MemoryBankClient:
                     "memory_bank_write", 
                     arguments={
                         "projectName": project_name,
-                        "fileName": "global_rules.md",
+                        "fileName": file_name,
                         "content": content
                     }
                 )

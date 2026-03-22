@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Iterator, Optional, Protocol
+from typing import Iterator, Optional, Protocol, Any, Dict
 
 
 @dataclass
@@ -8,6 +8,7 @@ class Interaction:
     timestamp: datetime
     role: str  # "user" or "agent"
     content: str
+    project_name: str = "global"
     metadata: Optional[dict] = None
 
 

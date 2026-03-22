@@ -78,6 +78,14 @@ class GeminiProvider(BaseProvider):
         return []
 
     def _process_file(self, file_path: str):
+        # Extract project name from the directory structure
+        # ~/.gemini/tmp/[project_name]/...
+        try:
+            rel_path = Path(file_path).relative_to(self.log_dir)
+            project_name = rel_path.parts[0] if rel_path.parts else "global"
+        except Exception:
+            project_name = "global"
+
         # Safety: copy file to avoid locking issues
         temp_path = f"{file_path}.snapshot"
         try:
@@ -108,7 +116,7 @@ class GeminiProvider(BaseProvider):
                     msg_id = f"{session_id}_{raw_msg_id}"
                     
                     if msg_id not in processed_set:
-                        self._extract_interaction(msg)
+                        self._extract_interaction(msg, project_name)
                         processed_set.add(msg_id)
 
         except Exception as e:
@@ -121,7 +129,7 @@ class GeminiProvider(BaseProvider):
                 except Exception:
                     pass
 
-    def _extract_interaction(self, data: dict):
+    def _extract_interaction(self, data: dict, project_name: str):
         # Support both 'type' and 'role' for the message sender
         role = data.get("type") or data.get("role") or "unknown"
         
@@ -139,12 +147,13 @@ class GeminiProvider(BaseProvider):
         else:
             content = str(raw_content)
             
-        if content.strip():
+        if content.strip() and role == "user":
             self.interaction_queue.append(
                 Interaction(
                     timestamp=datetime.now(),
                     role=role,
                     content=content,
+                    project_name=project_name,
                     metadata=data
                 )
             )
