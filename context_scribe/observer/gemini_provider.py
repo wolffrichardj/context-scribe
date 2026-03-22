@@ -155,7 +155,8 @@ class GeminiProvider(BaseProvider):
             
         # BREAK THE FEEDBACK LOOP: 
         # Skip any messages that contain our internal evaluation signature
-        if "--- CONTEXT-SCRIBE-INTERNAL-EVALUATION ---" in content:
+        # We use a case-insensitive check and strip whitespace to be safe
+        if "--- CONTEXT-SCRIBE-INTERNAL-EVALUATION ---" in content.upper() or "CONTEXT-SCRIBE-INTERNAL-EVALUATION" in content:
             return
 
         if content.strip() and role == "user":

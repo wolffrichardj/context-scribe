@@ -54,6 +54,8 @@ INSTRUCTIONS:
 2. Rule Hierarchy & Updates (CRITICAL):
    - If the rule is GLOBAL: Merge it ONLY into the **EXISTING GLOBAL RULES** list.
    - If the rule is PROJECT: Merge it ONLY into the **EXISTING PROJECT RULES** list.
+   - **Exclusive Scope**: When outputting rules for a scope, **DO NOT** include rules from the other scope.
+   - **Preservation Mandate**: You are FORBIDDEN from autonomously deleting rules or deduplicating by moving them between scopes. However, if a new user instruction directly CONTRADICTS an existing rule, you MUST replace the old rule with the new one (**New-Trumps-Old**).
    - **NEVER** mix global rules into the project list, or vice versa.
 3. Rule Enhancement:
    - Professionalize slang and add concrete examples.

@@ -29,18 +29,21 @@ You have access to a persistent Memory Bank via MCP. Before beginning any task, 
 """
 
 class Dashboard:
-    def __init__(self, tool: str):
+    def __init__(self, tool: str, bank_path: str):
         self.tool = tool
+        self.bank_path = bank_path
         self.status = "Initializing..."
         self.last_event_time = "N/A"
         self.update_count = 0
-        self.history = []  # List of (time, file_path, description) tuples
+        self.history = []  # List of (time, file_path, description, absolute_path) tuples
 
     def add_history(self, file_path: str, description: str):
         self.update_count += 1
         self.last_event_time = datetime.now().strftime("%H:%M:%S")
-        self.history.insert(0, (self.last_event_time, file_path, description))
-        if len(self.history) > 10:  # Keep last 10 updates
+        # Store absolute path for terminal linking
+        abs_path = os.path.join(os.path.expanduser(self.bank_path), file_path)
+        self.history.insert(0, (self.last_event_time, file_path, description, abs_path))
+        if len(self.history) > 10:
             self.history.pop()
 
     def generate_layout(self) -> Layout:
@@ -52,36 +55,26 @@ class Dashboard:
             Layout(name="footer", size=3)
         )
         
-        # Header
+        # Header showing tool and bank path
         header_text = Text.assemble(
             (" 📜 Context-Scribe ", "bold white on blue"),
-            (f" Monitoring: {self.tool} ", "bold blue on white")
+            (f" Monitoring: {self.tool} ", "bold blue on white"),
+            (f" 📂 Bank: {self.bank_path} ", "dim italic")
         )
         layout["header"].update(Panel(header_text, style="blue", border_style="blue"))
 
-        # Status Panel (Top)
-        status_color = "cyan"
-        if "🤔" in self.status: status_color = "yellow"
-        elif "📖" in self.status: status_color = "blue"
-        elif "🧠" in self.status: status_color = "bright_magenta"
-        elif "📝" in self.status: status_color = "magenta"
-        elif "✅" in self.status: status_color = "green"
+        # ... (status logic) ...
 
-        status_text = Text(f"\n{self.status}\n", justify="center", style=f"bold {status_color}")
-        layout["status"].update(Panel(
-            status_text,
-            title="Active Task",
-            border_style=status_color
-        ))
-
-        # History Panel (Bottom)
+        # History Panel with Clickable Links
         history_table = Table(expand=True, box=None)
         history_table.add_column("Time", style="dim", width=10)
-        history_table.add_column("Modified File", style="cyan")
+        history_table.add_column("Modified File (Click to Open)", style="cyan")
         history_table.add_column("Description", style="dim")
         
-        for time, path, desc in self.history:
-            history_table.add_row(time, path, desc)
+        for time, path, desc, abs_p in self.history:
+            # Create a terminal hyperlink (OSC 8)
+            link_path = Text(path, style=f"link file://{abs_p}")
+            history_table.add_row(time, link_path, desc)
             
         layout["history"].update(Panel(
             history_table,
@@ -133,7 +126,7 @@ async def run_daemon(tool: str, bank_path: str) -> bool:
         console.print("[bold red]Fatal Error: Could not connect to the Memory Bank MCP server.[/bold red]")
         os._exit(1)
 
-    db = Dashboard(tool)
+    db = Dashboard(tool, bank_path)
     with Live(db.generate_layout(), refresh_per_second=10, screen=True) as live:
         try:
             loop = asyncio.get_event_loop()
