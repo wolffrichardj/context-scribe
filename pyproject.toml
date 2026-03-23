@@ -20,7 +20,13 @@ test = [
     "pytest",
     "pytest-asyncio",
     "pytest-mock",
-    "pytest-cov"
+    "pytest-cov",
+    "pytest-timeout"
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "timeout(timeout): timeout marker used by provider watch tests"
 ]
 
 [project.scripts]
