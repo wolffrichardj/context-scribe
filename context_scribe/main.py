@@ -1,6 +1,5 @@
 import asyncio
 import os
-import sys
 from pathlib import Path
 from datetime import datetime
 import click
@@ -10,12 +9,12 @@ from rich.panel import Panel
 from rich.text import Text
 from rich.layout import Layout
 from rich.table import Table
-from rich.spinner import Spinner
 
+from context_scribe.observer.antigravity_provider import AntigravityProvider
 from context_scribe.observer.gemini_provider import GeminiProvider
 from context_scribe.evaluator.llm import Evaluator
 from context_scribe.bridge.mcp_client import MemoryBankClient
-from context_scribe.observer.provider import Interaction, BaseProvider
+from context_scribe.observer.provider import BaseProvider
 
 console: Console = Console()
 
@@ -122,10 +121,22 @@ def bootstrap_global_config() -> None:
         with open(gemini_md_path, "a", encoding="utf-8") as f:
             f.write(f"\n{MASTER_RETRIEVAL_RULE}\n")
 
+def get_provider(tool: str) -> BaseProvider | None:
+    providers = {
+        "gemini": GeminiProvider,
+        "antigravity": AntigravityProvider,
+    }
+    provider_cls = providers.get(tool)
+    if not provider_cls:
+        return None
+    return provider_cls()
+
+
 async def run_daemon(tool: str, bank_path: str) -> bool:
     bootstrap_global_config()
-    provider = GeminiProvider() if tool == "gemini" else None
-    if not provider: return False
+    provider = get_provider(tool)
+    if not provider:
+        return False
 
     evaluator = Evaluator()
     mcp_client = MemoryBankClient(bank_path=bank_path)
@@ -201,7 +212,7 @@ async def run_daemon(tool: str, bank_path: str) -> bool:
     return True
 
 @click.command()
-@click.option('--tool', default='gemini', help='The AI tool to monitor')
+@click.option('--tool', default='gemini', type=click.Choice(['gemini', 'antigravity']), help='The AI tool to monitor')
 @click.option('--bank-path', default='~/.memory-bank', help='Path to your Memory Bank root')
 def cli(tool, bank_path):
     """Context-Scribe: Persistent Secretary Daemon"""

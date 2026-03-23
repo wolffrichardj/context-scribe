@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-from context_scribe.main import bootstrap_global_config, MASTER_RETRIEVAL_RULE, Dashboard
+from context_scribe.main import Dashboard, bootstrap_global_config, get_provider
 
 def test_bootstrap_global_config_creates_file(tmp_path):
     # Mock home directory to our temp path
@@ -34,3 +34,9 @@ def test_dashboard_generate_layout():
     layout = db.generate_layout()
     # Check if some component contains the text
     assert layout["history"] is not None
+
+
+def test_get_provider_supports_antigravity():
+    assert get_provider("gemini").tool_name == "gemini"
+    assert get_provider("antigravity").tool_name == "antigravity"
+    assert get_provider("unsupported") is None

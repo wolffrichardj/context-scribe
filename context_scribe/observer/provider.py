@@ -1,6 +1,14 @@
+import json
+import os
+import shutil
+import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Iterator, Optional, Protocol, Any, Dict
+from pathlib import Path
+from typing import Any, Callable, Dict, Iterator, Optional, Protocol, Set
+
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 
 @dataclass
@@ -14,10 +22,179 @@ class Interaction:
 
 class BaseProvider(Protocol):
     """Abstract interface for all log providers."""
-    
+
     def watch(self) -> Iterator[Interaction]:
         """
         Continuously yields new interactions as they are detected.
         This is a blocking generator that yields Interaction objects.
         """
         ...
+
+
+class JsonLogHandler(FileSystemEventHandler):
+    def __init__(self, callback: Callable[[str], None]):
+        super().__init__()
+        self.callback = callback
+
+    def on_modified(self, event):
+        if event.is_directory:
+            return
+        if event.src_path.endswith(".json"):
+            self.callback(event.src_path)
+
+    def on_created(self, event):
+        if event.is_directory:
+            return
+        if event.src_path.endswith(".json"):
+            self.callback(event.src_path)
+
+
+class JsonLogProvider:
+    default_log_dir = ""
+    tool_name = "unknown"
+
+    def __init__(self, log_dir: Optional[str] = None):
+        resolved_log_dir = log_dir or self.default_log_dir
+        self.log_dir = Path(os.path.expanduser(resolved_log_dir))
+        self.interaction_queue = []
+        self.global_processed_ids: Set[str] = set()
+        self.last_mtimes: Dict[str, float] = {}
+        self._initialize_historical_logs()
+
+    def _initialize_historical_logs(self):
+        """Skip all messages existing before the daemon starts."""
+        if not self.log_dir.exists():
+            return
+
+        print(f"Initializing historical logs for {self.tool_name} (skipping existing messages)...")
+        for file_path in self.log_dir.glob("**/*.json"):
+            try:
+                self.last_mtimes[str(file_path)] = os.path.getmtime(file_path)
+                with open(file_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    messages = self._get_messages_from_data(data)
+
+                    if isinstance(data, dict):
+                        session_id = data.get("sessionId") or data.get("id") or "unknown"
+                    else:
+                        session_id = "unknown"
+
+                    for msg in messages:
+                        raw_msg_id = msg.get("id") or msg.get("messageId") or str(msg)
+                        self.global_processed_ids.add(f"{session_id}_{raw_msg_id}")
+            except Exception:
+                pass
+
+    def _get_messages_from_data(self, data) -> list:
+        """Extracts a list of message objects from various possible JSON structures."""
+        if isinstance(data, dict):
+            if "messages" in data:
+                return data["messages"]
+            return [data]
+        if isinstance(data, list):
+            return data
+        return []
+
+    def _resolve_project_name(self, file_path: str) -> str:
+        try:
+            path_obj = Path(file_path)
+            rel_path = path_obj.relative_to(self.log_dir)
+            if len(rel_path.parts) == 1:
+                return "global"
+            return rel_path.parts[0]
+        except Exception:
+            return "global"
+
+    def _process_file(self, file_path: str):
+        project_name = self._resolve_project_name(file_path)
+        temp_path = f"{file_path}.snapshot"
+        try:
+            shutil.copy2(file_path, temp_path)
+            with open(temp_path, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+                if not content:
+                    return
+                data = json.loads(content)
+                messages = self._get_messages_from_data(data)
+
+                if isinstance(data, dict):
+                    session_id = data.get("sessionId") or data.get("id") or "unknown"
+                else:
+                    session_id = "unknown"
+
+                for msg in messages:
+                    raw_msg_id = msg.get("id") or msg.get("messageId") or str(msg)
+                    msg_id = f"{session_id}_{raw_msg_id}"
+
+                    if msg_id not in self.global_processed_ids:
+                        self._extract_interaction(msg, project_name)
+                        self.global_processed_ids.add(msg_id)
+        except Exception:
+            pass
+        finally:
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except Exception:
+                    pass
+
+    def _extract_interaction(self, data: dict, project_name: str):
+        role = data.get("type") or data.get("role") or "unknown"
+        raw_content = data.get("content") or data.get("message") or data.get("text") or ""
+
+        if isinstance(raw_content, list):
+            text_parts = []
+            for part in raw_content:
+                if isinstance(part, dict):
+                    text_parts.append(part.get("text", ""))
+                else:
+                    text_parts.append(str(part))
+            content = "\n".join(text_parts)
+        else:
+            content = str(raw_content)
+
+        if "--- CONTEXT-SCRIBE-INTERNAL-EVALUATION ---" in content.upper() or "CONTEXT-SCRIBE-INTERNAL-EVALUATION" in content:
+            return
+
+        if content.strip() and role == "user":
+            self.interaction_queue.append(
+                Interaction(
+                    timestamp=datetime.now(),
+                    role=role,
+                    content=content,
+                    project_name=project_name,
+                    metadata=data,
+                )
+            )
+
+    def watch(self) -> Iterator[Interaction]:
+        if not self.log_dir.exists():
+            self.log_dir.mkdir(parents=True, exist_ok=True)
+
+        event_handler = JsonLogHandler(self._process_file)
+        observer = Observer()
+        observer.schedule(event_handler, str(self.log_dir), recursive=True)
+        observer.start()
+
+        try:
+            while True:
+                for file_path in self.log_dir.glob("**/*.json"):
+                    try:
+                        mtime = os.path.getmtime(file_path)
+                        if str(file_path) not in self.last_mtimes or mtime > self.last_mtimes.get(str(file_path), 0):
+                            self.last_mtimes[str(file_path)] = mtime
+                            self._process_file(str(file_path))
+                    except Exception:
+                        pass
+
+                if not self.interaction_queue:
+                    yield None
+                    time.sleep(1)
+                    continue
+
+                while self.interaction_queue:
+                    yield self.interaction_queue.pop(0)
+        except KeyboardInterrupt:
+            observer.stop()
+
+        observer.join()
