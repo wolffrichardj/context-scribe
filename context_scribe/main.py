@@ -12,6 +12,7 @@ from rich.layout import Layout
 from rich.table import Table
 from rich.spinner import Spinner
 
+from context_scribe.observer.cursor_provider import CursorProvider
 from context_scribe.observer.gemini_provider import GeminiProvider
 from context_scribe.evaluator.llm import Evaluator
 from context_scribe.bridge.mcp_client import MemoryBankClient
@@ -124,8 +125,15 @@ def bootstrap_global_config() -> None:
 
 async def run_daemon(tool: str, bank_path: str) -> bool:
     bootstrap_global_config()
-    provider = GeminiProvider() if tool == "gemini" else None
-    if not provider: return False
+    providers = {
+        "gemini": GeminiProvider,
+        "cursor": CursorProvider,
+    }
+    provider_factory = providers.get(tool)
+    if not provider_factory:
+        return False
+
+    provider = provider_factory()
 
     evaluator = Evaluator()
     mcp_client = MemoryBankClient(bank_path=bank_path)
